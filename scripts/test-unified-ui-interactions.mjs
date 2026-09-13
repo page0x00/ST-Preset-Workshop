@@ -245,7 +245,7 @@ for(const skin of ['aqua','glass','violet','theme'])for(const follow of [false,t
   callback();assert.equal(mode.value,'dark');assert.equal(updates,1);
 }
 
-// Desktop retains background motion; touch commits the identical material without extra layers.
+// Desktop and touch share one bounded transition; final material is identical.
 function motionTheme(){
   const env=bootTheme('aqua','light'),surface=element();surface.isConnected=true;env.roots.push(surface);
   env.doc.startViewTransition=()=>{throw Error('Input must not wait for a document screenshot');};
@@ -258,9 +258,9 @@ for(const device of ['desktop','phone','tablet']){
   env.top.navigator={maxTouchPoints:device==='tablet'?10:device==='phone'?5:0};
   env.api.setTone('dark',()=>native++);env.flush();
   assert.equal(native,1);assert.equal(env.api.getTokens(),env.api.themes.aqua.dark);assert.equal(env.events.length,2);
-  assert.equal(env.surface.classList.contains('pmm-theme-surface-motion'),device==='desktop');
-  assert.equal(env.surface.style.getPropertyValue('--pmm-theme-motion-from'),device==='desktop'?env.api.themes.aqua.light.surface:'');
-  assert.equal(env.surface.style.getPropertyValue('--pmm-theme-motion-to'),device==='desktop'?env.api.themes.aqua.dark.surface:'');
+  assert.equal(env.surface.classList.contains('pmm-theme-surface-motion'),true);
+  assert.equal(env.surface.style.getPropertyValue('--pmm-theme-motion-from'),env.api.themes.aqua.light.surface);
+  assert.equal(env.surface.style.getPropertyValue('--pmm-theme-motion-to'),env.api.themes.aqua.dark.surface);
   env.timers.flush();assert(!env.surface.classList.contains('pmm-theme-surface-motion'));env.api.destroy();
 }
 // A pending request can be superseded or disposed before the native setter runs.

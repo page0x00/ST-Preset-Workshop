@@ -6,9 +6,9 @@ const entry=fs.readFileSync(new URL('../dist/index.js',import.meta.url),'utf8');
 const source=entry.slice(entry.indexOf('function canAutoReloadAfterUpdate()'),entry.indexOf('function scheduleNativeSingleUpdateReload()'));
 function boot(context,editing=false){
   let reloads=0,notices=0,marks=0;
-  const api=vm.runInNewContext(`(()=>{let nativeUpdateReloadTimer=1,updateReloadDeferred=false;${source};return{reload:markExtensionUpdateReload};})()`,{
+  const api=vm.runInNewContext(`(()=>{let nativeUpdateReloadTimer=1,updateReloadDeferred=false,nativeUpdateReloadPending=true;${source};return{reload:markExtensionUpdateReload};})()`,{
     SillyTavern:{getContext:()=>{if(context instanceof Error)throw context;return context;}},
-    document:{activeElement:{matches:()=>editing}},location:{reload:()=>reloads++},notify:()=>notices++,
+    clearTimeout:()=>{},document:{activeElement:{matches:()=>editing},removeEventListener:()=>{}},location:{reload:()=>reloads++},notify:()=>notices++,
     __PMM_PERFORMANCE_GUARD_V275__:{markReloadReason:()=>marks++},
   });
   return{...api,counts:()=>({reloads,notices,marks})};
@@ -31,5 +31,6 @@ assert.equal((entry.match(/globalThis\.location\.reload\(\)/g)||[]).length,1,'Al
 const versionCheck=entry.slice(entry.indexOf('async function checkForInstalledUpdate()'),entry.indexOf('function handleVisibilityChange()'));
 assert(versionCheck.includes('markExtensionUpdateReload();'));
 const nativeUpdate=entry.slice(entry.indexOf('function scheduleNativeSingleUpdateReload()'),entry.indexOf('function handleNativeExtensionManagerClick('));
-assert(nativeUpdate.includes('markExtensionUpdateReload,'));
+assert(nativeUpdate.includes('deferNativeSingleUpdateReload()'));
+assert(source.includes('markExtensionUpdateReload();'),'Author manager-close path still uses the shared chat guard');
 console.log('聊天刷新保护通过：有聊天/正在载入/输入/生成及宿主未知时不自动刷新，不调用聊天保存或清空，延迟回调重新检查。');

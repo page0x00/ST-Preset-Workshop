@@ -119,7 +119,7 @@ for(const [width,height] of [[360,800],[800,360],[800,1100],[1100,800]]){
   tap();advance(100);tap();advance(320);assert.equal(integration.main,1);assert(!api.getState().expanded,'A double tap only opens the main window');
   event(handle,'pointerdown');advance(360);assert.equal(integration.controller,1);const afterLong=JSON.stringify(store.getState().position);event(top,'pointermove',width-10,height-10);flush();assert.equal(handle.style.getPropertyValue('transform'),'','A long press belongs to the opened controller, not another floating drag');assert.equal(JSON.stringify(store.getState().position),afterLong);event(top,'pointerup');advance(400);assert(!api.getState().expanded,'A long press cannot also toggle the banner');
 
-  theme.setTone('dark');flush();assert.equal(doc.querySelectorAll('.pmm-theme-surface-motion').length,0,'Touch themes avoid extra compositing layers');
+  theme.setTone('dark');flush();assert(doc.querySelectorAll('.pmm-theme-surface-motion').length>0,'Touch themes retain bounded surface transitions');
   event(handle,'pointerdown',width/2,100);event(top,'pointermove',width/2+20,110);assert.equal(handle.style.getPropertyValue('transform'),'translate3d(20px,10px,0)','First motion is visible immediately');
   assert.equal(doc.querySelectorAll('.pmm-theme-surface-motion').length,0,'Dragging cancels surface effects immediately');
   advance(150);const before={...metrics},position=JSON.stringify(store.getState().position);
@@ -358,7 +358,7 @@ for(const [width,height] of [[360,800],[800,360],[800,1100],[1100,800],[1440,900
   }
   assert.equal(metrics.computedReads,before,'Own skin changes cannot repeatedly measure a stable host palette');
   theme.setTone('dark');flush();assert.equal(doc.getElementById('pmm-mobile-layout-card').dataset.pmmLayoutTheme,'dark','Controller tone updates with the same skin commit');theme.setTone('light');flush();
-  assert.equal(env.frames.size,0);assert.equal(env.timers.size,0);
+  assert.equal(env.frames.size,0);assert.equal(env.timers.size,1,'Rapid themes keep exactly one finite motion cleanup, never a timer per click');
   const observer=observers.find(o=>o.targets.some(({node,options})=>node===doc.body&&options?.attributeFilter?.includes('style')));
   doc.body.style.setProperty('--SmartThemeBlurTintColor','rgb(30,40,50)');observer.callback([{target:doc.body}]);
   theme.toggleFollow();flush();assert(metrics.computedReads>before,'A real Tavern appearance change invalidates the cached palette');assert.equal(theme.getTone(),'dark');
