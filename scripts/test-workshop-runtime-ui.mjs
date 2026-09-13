@@ -130,7 +130,7 @@ for(const [width,height] of [[360,800],[800,360],[800,1100],[1100,800]]){
   assert.deepEqual(metrics,before,'Pointer moves cannot measure DOM, read computed styles or write storage');
   theme.setTone('light');flush();assert.equal(doc.documentElement.dataset.pmmThemeTone,'dark','Theme writes wait until the gesture releases');
   event(top,'pointerup',width+100,200);flush();
-  assert.equal(doc.documentElement.dataset.pmmThemeTone,'light');assert.equal(api.getState().position.dock,'right');assert.equal(api.getState().position.x,width-28);assert(handle.classList.contains('is-docked'));
+  assert.equal(doc.documentElement.dataset.pmmThemeTone,'light');assert.equal(api.getState().position.dock,'right');assert.equal(api.getState().position.x,width-16);assert(handle.classList.contains('is-docked'));
   tap(width-10,200);assert(api.getState().expanded,'Docked taps open immediately, without a double-tap delay');
   tap(width-10,200);assert(!api.getState().expanded);
 

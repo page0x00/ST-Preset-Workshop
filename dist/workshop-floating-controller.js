@@ -12,7 +12,7 @@ let geometry={vw:1,vh:1,coarse:false,bannerW:180,bannerH:240,ball:46,handleW:28,
 function listen(target,type,fn,options){target?.addEventListener?.(type,fn,options);cleanup.push(()=>target?.removeEventListener?.(type,fn,options?.capture??options))}
 function docs(){const result=[DOC];try{if(document&&!result.includes(document))result.push(document)}catch(_){}return result}
 function refreshViewport(){geometry.vw=Math.max(1,Math.min(TOP.innerWidth||DOC.documentElement.clientWidth||1,DOC.documentElement.clientWidth||Infinity,TOP.visualViewport?.width||Infinity));geometry.vh=Math.max(1,Math.min(TOP.innerHeight||DOC.documentElement.clientHeight||1,DOC.documentElement.clientHeight||Infinity,TOP.visualViewport?.height||Infinity));geometry.portrait=(TOP.innerHeight||DOC.documentElement.clientHeight||1)>=(TOP.innerWidth||DOC.documentElement.clientWidth||1);geometry.bannerW=Math.min(geometry.bannerW,geometry.vw);geometry.coarse=Boolean(TOP.matchMedia?.('(pointer: coarse)')?.matches)||Number(TOP.navigator?.maxTouchPoints||0)>0;const style=TOP.getComputedStyle(DOC.documentElement);geometry.ball=parseFloat(style.getPropertyValue("--pmm-floating-ball-size"))||(geometry.coarse?46:42);geometry.handleW=parseFloat(style.getPropertyValue("--pmm-floating-handle-width"))||(geometry.coarse?28:26);geometry.handleH=parseFloat(style.getPropertyValue("--pmm-floating-handle-height"))||(geometry.coarse?64:58)}
-function controlSize(expanded,g=geometry,dock='free'){if(expanded)return{w:g.handleW,h:g.handleH};const size=dock==='free'?g.ball:Math.max(28,g.handleW);return{w:size,h:size}}
+function controlSize(expanded,g=geometry,dock='free'){if(expanded)return{w:g.handleW,h:g.handleH};return dock==='free'?{w:g.ball,h:g.ball}:{w:g.coarse?16:14,h:42}}
 function measurePanel(){const panel=root?.querySelector?.(':scope > .panel-wrapper');if(!panel)return;const rect=panel.getBoundingClientRect();if(rect.width>80)geometry.bannerW=rect.width;if(rect.height>20)geometry.bannerH=rect.height;const quick=panel.querySelector('.quick-edit-dropdown');if(quick&&quick.style.display!=='none'){const cap=parseFloat(TOP.getComputedStyle(DOC.documentElement).getPropertyValue('--pmm-floating-max-height'))||Math.floor(geometry.vh/2);geometry.bannerH=Math.min(cap,geometry.vh)}}
 function defaultPosition(){const s=controlSize(false);return{x:Math.round((geometry.vw-s.w)/2),y:Math.max(8,Math.round(geometry.vh*.035)),dock:'free'}}
 function clampPosition(position,expanded=STORE.getState().expanded,g=geometry){
@@ -134,7 +134,7 @@ function queueAutoWidth(){
   });
 }
 function refreshHeader(force=false){if(TOP.__PMM_THEME_SYSTEM__?.deferWork?.('floating-header',()=>refreshHeader(force)))return;syncPresetName(force);queueAutoWidth()}
-function paint(position,side){const point=panelPoint(position,side);paintVariable(handle,'--pmm-floating-x',position.x+'px');paintVariable(handle,'--pmm-floating-y',position.y+'px');if(handle.dataset.side!==side)handle.dataset.side=side;if(root){if(root.dataset.side!==side)root.dataset.side=side;paintVariable(root,'--pmm-banner-x',point.x+'px');paintVariable(root,'--pmm-banner-y',point.y+'px');paintVariable(root,'--pmm-banner-max-width',geometry.vw+'px');const overlap=STORE.getState().expanded&&geometry.bannerW+geometry.handleW+16>geometry.vw?(position.x+geometry.handleW/2<=geometry.vw/2?'left':'right'):'none';if(root.dataset.handleOverlap!==overlap)root.dataset.handleOverlap=overlap;paintVariable(root,'--pmm-banner-handle-gutter',geometry.handleW+8+'px')}}
+function paint(position,side){const point=panelPoint(position,side);paintVariable(handle,'--pmm-floating-dock-width',controlSize(false,geometry,'left').w+'px');paintVariable(handle,'--pmm-floating-dock-opacity',geometry.coarse?'.58':'.85');paintVariable(handle,'--pmm-floating-x',position.x+'px');paintVariable(handle,'--pmm-floating-y',position.y+'px');if(handle.dataset.side!==side)handle.dataset.side=side;if(root){if(root.dataset.side!==side)root.dataset.side=side;paintVariable(root,'--pmm-banner-x',point.x+'px');paintVariable(root,'--pmm-banner-y',point.y+'px');paintVariable(root,'--pmm-banner-max-width',geometry.vw+'px');const overlap=STORE.getState().expanded&&geometry.bannerW+geometry.handleW+16>geometry.vw?(position.x+geometry.handleW/2<=geometry.vw/2?'left':'right'):'none';if(root.dataset.handleOverlap!==overlap)root.dataset.handleOverlap=overlap;paintVariable(root,'--pmm-banner-handle-gutter',geometry.handleW+8+'px')}}
 function restorePanelDisplay(){
   if(managedPanel&&managedDisplay&&managedPanel.style.getPropertyPriority('display')==='important'&&managedPanel.style.getPropertyValue('display')===managedDisplay.owned){
     if(managedDisplay.value)managedPanel.style.setProperty('display',managedDisplay.value,managedDisplay.priority);
@@ -210,6 +210,7 @@ function onDown(event){
 function paintDrag(){
   dragFrame=0;
   if(!gesture?.moved)return;
+  if(gesture.detached&&!gesture.paintedDetached){handle.classList.remove('is-docked');gesture.paintedDetached=true}
   const transform=`translate3d(${gesture.dx}px,${gesture.dy}px,0)`;
   if(gesture.paintedTransform===transform)return;
   gesture.paintedTransform=transform;
@@ -220,12 +221,20 @@ function updateDragPoint(event){
   const samples=event.getCoalescedEvents?.();
   const point=samples?.length?samples[samples.length-1]:event;
   if(!Number.isFinite(point.clientX)||!Number.isFinite(point.clientY))return null;
-  const g=gesture.g,s=gesture.size||controlSize(gesture.expanded,g),height=gesture.expanded?Math.max(s.h,g.bannerH):s.h;
-  const margin=gesture.dock==='left'||gesture.dock==='right'?0:4;
-  gesture.dx=Math.min(Math.max(margin,gesture.bx+point.clientX-gesture.sx),Math.max(margin,g.vw-s.w-margin))-gesture.bx;
+  const g=gesture.g;
+  // Detach after a short inward gesture, using only the geometry captured at pointerdown.
+  const inward=gesture.dock==='left'?point.clientX-gesture.sx:gesture.dock==='right'?gesture.sx-point.clientX:0;
+  if(!gesture.expanded&&!gesture.detached&&inward>=8){
+    const old=gesture.size||controlSize(false,g,gesture.dock),ball=controlSize(false,g);
+    gesture.detached=true;gesture.size=ball;gesture.offsetX=(old.w-ball.w)/2;gesture.offsetY=(old.h-ball.h)/2;
+  }
+  gesture.releaseX=point.clientX;
+  const s=gesture.size||controlSize(gesture.expanded,g),height=gesture.expanded?Math.max(s.h,g.bannerH):s.h;
+  const margin=!gesture.detached&&(gesture.dock==='left'||gesture.dock==='right')?0:4;
+  gesture.dx=Math.min(Math.max(margin,gesture.bx+(gesture.offsetX||0)+point.clientX-gesture.sx),Math.max(margin,g.vw-s.w-margin))-gesture.bx;
   if(gesture.minDX!=null)gesture.dx=Math.min(gesture.maxDX,Math.max(gesture.minDX,gesture.dx));
   const marginY=Math.min(6,Math.max(0,(g.vh-height)/2));
-  gesture.dy=Math.min(Math.max(marginY,gesture.by+point.clientY-gesture.sy),Math.max(marginY,g.vh-height-marginY))-gesture.by;
+  gesture.dy=Math.min(Math.max(marginY,gesture.by+(gesture.offsetY||0)+point.clientY-gesture.sy),Math.max(marginY,g.vh-height-marginY))-gesture.by;
   return point;
 }
 function onMove(event){
@@ -244,9 +253,10 @@ function onMove(event){
   if(firstMove)paintDrag();else if(!dragFrame)dragFrame=TOP.requestAnimationFrame(paintDrag);event.preventDefault();event.stopPropagation();
 }
 function clearDragPaint(){if(dragFrame)TOP.cancelAnimationFrame(dragFrame);dragFrame=0;handle?.classList.remove('is-dragging');if(handle){handle.style.removeProperty('transform');handle.style.removeProperty('transition');}root?.classList.remove('is-dragging');root?.querySelector?.(':scope > .panel-wrapper')?.style.removeProperty('transform')}
-function settle(position,g=geometry){
-  const expanded=STORE.getState().expanded,s=controlSize(expanded,g),distance=Math.min(72,Math.max(40,g.vw*.08));
-  const dock=position.x<distance?'left':g.vw-position.x-s.w<distance?'right':'free';
+function settle(position,g=geometry,releasedPointerX=null){
+  const expanded=STORE.getState().expanded,s=controlSize(expanded,g),distance=expanded?Math.min(72,Math.max(40,g.vw*.08)):12;
+  // A ball just pulled out must not be caught again by its larger bounds. Return the finger to the edge to redock.
+  const dock=Number.isFinite(releasedPointerX)?(releasedPointerX<=4?'left':releasedPointerX>=g.vw-4?'right':'free'):(position.x<distance?'left':g.vw-position.x-s.w<distance?'right':'free');
   const next=clampPosition({...position,dock},expanded,g);
   STORE.commit({position:next,side:resolveSide(next,g)},'drag-end');
 }
@@ -254,7 +264,7 @@ function cancelPendingTap(){TOP.clearTimeout(tapTimer);tapTimer=0;lastTapAt=0;la
 function singleTap(event){const now=Date.now(),near=lastTapPoint&&Math.hypot(event.clientX-lastTapPoint.x,event.clientY-lastTapPoint.y)<22;if(near&&now-lastTapAt<=280){cancelPendingTap();void openMain('doubleclick');return}cancelPendingTap();lastTapAt=now;lastTapPoint={x:event.clientX,y:event.clientY};tapTimer=TOP.setTimeout(()=>{tapTimer=0;lastTapAt=0;lastTapPoint=null;setExpanded(!STORE.getState().expanded,'tap')},300)}
 function onUp(event){
   if(!gesture||(gesture.id!=null&&event.pointerId!==gesture.id))return;if(gesture.moved)updateDragPoint(event);const done=gesture;gesture=null;clearLong();try{done.target.releasePointerCapture?.(done.id)}catch(_){}clearDragPaint();
-  if(done.moved){TOP.__PMM_THEME_SYSTEM__?.endInteraction?.('floating');if(!done.fromHandle){done.target.__pmmSuppressClickUntil=Date.now()+420;suppressMouseUntil=Date.now()+420}const final={x:done.bx+(done.dx||0),y:done.by+(done.dy||0),dock:'free'};settle(final,done.g);if(renderFrame)TOP.cancelAnimationFrame(renderFrame);renderFrame=0;render();event.preventDefault();event.stopPropagation();return}
+  if(done.moved){TOP.__PMM_THEME_SYSTEM__?.endInteraction?.('floating');if(!done.fromHandle){done.target.__pmmSuppressClickUntil=Date.now()+420;suppressMouseUntil=Date.now()+420}const final={x:done.bx+(done.dx||0),y:done.by+(done.dy||0),dock:'free'};settle(final,done.g,done.detached?done.releaseX:null);if(renderFrame)TOP.cancelAnimationFrame(renderFrame);renderFrame=0;render();event.preventDefault();event.stopPropagation();return}
   if(done.longPressed){if(!done.fromHandle){done.target.__pmmSuppressClickUntil=Date.now()+420;suppressMouseUntil=Date.now()+420}event.preventDefault();event.stopPropagation();return}
   if(done.fromHandle){handle?.blur?.();if(done.dock&&done.dock!=='free'){cancelPendingTap();setExpanded(!STORE.getState().expanded,'dock-tap')}else singleTap(event);event.preventDefault();event.stopPropagation()}
   else if(done.entry){done.target.__pmmSuppressClickUntil=Date.now()+420;root?.__pmmQuickEntries?.toggle?.()}
@@ -292,13 +302,15 @@ function installStyle(doc){if(!doc?.head||doc.getElementById(STYLE_ID))return;co
 #preset-manager-floating-panel .pmm-unified-floating-root .category-group{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;transition:none!important}
 }
 
-/* Dock size and position commit together: interpolating width after right-edge clamping overflows the viewport. */
-html body #${HANDLE_ID}#${HANDLE_ID}.is-docked{width:max(28px,var(--pmm-floating-handle-width,28px))!important;height:max(28px,var(--pmm-floating-handle-width,28px))!important;border-radius:12px!important}
-html body #${HANDLE_ID}#${HANDLE_ID}.is-docked:not(.is-dragging){box-shadow:0 2px 8px color-mix(in srgb,var(--pmm-floating-border) 24%,transparent),var(--pmm-theme-highlight)!important}
+/* Author edge-tab proportions (touch 16×42, desktop 14×42), mirrored at the left edge.
+   Only the collapsed dock uses this skin; size and edge position still commit together. */
+html body #${HANDLE_ID}#${HANDLE_ID}.is-docked{width:var(--pmm-floating-dock-width,16px)!important;height:42px!important;opacity:var(--pmm-floating-dock-opacity,.58)!important}
+html body #${HANDLE_ID}#${HANDLE_ID}.is-docked:not(.is-dragging){backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;box-shadow:-2px 0 12px rgba(0,0,0,.25),inset 0 1px 0 hsla(0,0%,100%,.08),inset 0 -1px 0 rgba(0,0,0,.1)!important}
 html body #${HANDLE_ID}#${HANDLE_ID}.is-docked .pmm-ball-glyph{opacity:0}
-html body #${HANDLE_ID}#${HANDLE_ID}.is-docked .pmm-handle-glyph{opacity:.9;transform:none!important;font-size:0!important}
-html body #${HANDLE_ID}#${HANDLE_ID}.is-docked[data-dock="left"]{border-left:0;border-top-left-radius:3px!important;border-bottom-left-radius:3px!important}
-html body #${HANDLE_ID}#${HANDLE_ID}.is-docked[data-dock="right"]{border-right:0;border-top-right-radius:3px!important;border-bottom-right-radius:3px!important}
+html body #${HANDLE_ID}#${HANDLE_ID}.is-docked .pmm-handle-glyph{opacity:.8;transform:none!important;font-size:0!important}
+html body #${HANDLE_ID}#${HANDLE_ID}.is-docked[data-dock="left"]{border-left:0!important;border-radius:0 8px 8px 0!important}
+html body #${HANDLE_ID}#${HANDLE_ID}.is-docked[data-dock="left"]:not(.is-dragging){box-shadow:2px 0 12px rgba(0,0,0,.25),inset 0 1px 0 hsla(0,0%,100%,.08),inset 0 -1px 0 rgba(0,0,0,.1)!important}
+html body #${HANDLE_ID}#${HANDLE_ID}.is-docked[data-dock="right"]{border-right:0!important;border-radius:8px 0 0 8px!important}
 html body #${HANDLE_ID}#${HANDLE_ID}.is-docked .pmm-handle-glyph::before{content:"";position:static;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg)}
 html body #${HANDLE_ID}#${HANDLE_ID}.is-docked[data-dock="right"] .pmm-handle-glyph::before{transform:rotate(135deg)}
 

@@ -1,6 +1,6 @@
 {
   "name": "st-preset-workshop",
-  "version": "2.98.8-page0x00.2",
+  "version": "2.98.8-page0x00.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,6 +16,7 @@
     "check:ui": "node --check dist/workshop-window-stack.js && node --check dist/workshop-session-state.js && node --check dist/workshop-floating-store.js && node --check dist/workshop-theme-system.js && node --check dist/workshop-floating-controller.js && node --check dist/workshop-layout-controller.js && node scripts/test-unified-ui-migration.mjs && node scripts/test-unified-ui-interactions.mjs && node scripts/test-workshop-startup-state.mjs && node scripts/test-workshop-performance.mjs && node scripts/test-upstream-integration.mjs && node scripts/test-workshop-runtime-ui.mjs && node scripts/test-workshop-geometry-isolation.mjs && node scripts/test-workshop-chat-safety.mjs && node scripts/test-workshop-controller-save.mjs && node scripts/test-upstream-v29736-integration.mjs",
     "test:banner-browser": "node scripts/test-banner-browser.mjs",
     "test:theme-motion-browser": "node scripts/test-theme-motion-browser.mjs",
-    "test:theme-dock-browser": "node scripts/test-theme-dock-browser.mjs"
+    "test:theme-dock-browser": "node scripts/test-theme-dock-browser.mjs",
+    "test:floating-dock-browser": "node scripts/test-floating-dock-browser.mjs"
   }
 }

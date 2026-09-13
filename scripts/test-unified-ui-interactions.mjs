@@ -706,7 +706,7 @@ for(const height of [360,780,1100]){
   assert.equal(pendingCard.style.getPropertyValue('--pmm-theme-control'),env.api.themes.violet.light.control);
   env.api.setTheme('violet');env.flush();assert.equal(env.events.length,2);env.api.destroy();
 }
-// Dock geometry is flush to both device edges and leaves the half-screen banner inside the viewport.
+// Dock geometry is flush to both device edges and leaves a saved banner width inside the viewport.
 for(const vw of [320,360,390,768,1024]){
   const g={vw,vh:900,ball:46,handleW:28,handleH:64,bannerW:vw/2,bannerH:400};
   const state={expanded:false},commits=[];
@@ -716,7 +716,7 @@ for(const vw of [320,360,390,768,1024]){
   });
   for(const [x,dock] of [[8,'left'],[vw-50,'right']]){
     api.settle({x,y:100,dock:'free'});assert.equal(state.position.dock,dock);
-    assert.equal(state.position.x,dock==='left'?0:vw-28);
+    assert.equal(state.position.x,dock==='left'?0:vw-14);
     state.expanded=true;const expanded=api.clampPosition(state.position);
     assert.equal(expanded.x,dock==='left'?0:vw-28);
     const banner=api.panelPoint(expanded,api.resolveSide(expanded));
@@ -725,6 +725,10 @@ for(const vw of [320,360,390,768,1024]){
   }
   api.settle({x:vw/2-23,y:100,dock:'free'});assert.equal(state.position.dock,'free');
   assert.equal(commits.length,3,'Only releases persist a position');
+  api.settle({x:18,y:100,dock:'free'});assert.equal(state.position.dock,'free','Collapsed capture range no longer grows to 40–72px');
+  api.settle({x:4,y:100,dock:'free'},g,18);assert.equal(state.position.dock,'free','A newly enlarged ball stays free after a short inward release');
+  api.settle({x:4,y:100,dock:'free'},g,2);assert.equal(state.position.dock,'left','Returning the finger to the edge deliberately redocks');
+  api.settle({x:vw-50,y:100,dock:'free'},g,vw-18);assert.equal(state.position.dock,'free','Right-edge release uses the same detached rule');
 }
 // Full-screen custom banners remain inside the viewport at both edges and protect the handle corner.
 for(const vw of [320,390,768,1024])for(const bannerW of [vw/2,vw*.9,vw])for(const bannerH of [300,800]){
@@ -801,7 +805,7 @@ for(const dock of ['left','right']){
   const move=vm.runInNewContext(`${between(floating,'function updateDragPoint(event)','function onMove(event)')};updateDragPoint;`,{gesture});
   move({clientX:20,clientY:180});assert.equal(gesture.dx,0);assert.equal(gesture.dy,80);
 }
-// The square dock opens on the first release; banner taps call the native Vue action exactly once.
+// The native edge tab opens on the first release; banner taps call the native Vue action exactly once.
 for(const fromHandle of [false,true]){
   let opened=0,entries=0,waits=0;
   const release=vm.runInNewContext(`(()=>{let gesture={id:1,fromHandle:${fromHandle},entry:true,dock:'right',moved:false,target:{}};let renderFrame=0;${between(floating,'function onUp(event)','function onCancel(event)')};return onUp;})()`,{
