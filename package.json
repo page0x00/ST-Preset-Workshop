@@ -1,6 +1,6 @@
 {
   "name": "st-preset-workshop",
-  "version": "2.98.8-page0x00.3",
+  "version": "2.98.8-page0x00.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,6 +17,7 @@
     "test:banner-browser": "node scripts/test-banner-browser.mjs",
     "test:theme-motion-browser": "node scripts/test-theme-motion-browser.mjs",
     "test:theme-dock-browser": "node scripts/test-theme-dock-browser.mjs",
-    "test:floating-dock-browser": "node scripts/test-floating-dock-browser.mjs"
+    "test:floating-dock-browser": "node scripts/test-floating-dock-browser.mjs",
+    "test:phone-performance-browser": "node scripts/test-phone-performance-browser.mjs"
   }
 }

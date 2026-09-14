@@ -315,14 +315,14 @@ for(const capability of ['reduced','hidden']){
 }
 
 // A burst of split pointermoves must measure once, render once and save on release.
-for (const vertical of [true,false]) {
+for (const pointerType of ['touch','mouse']) for (const vertical of [true,false]) {
   const raf = frames(), doc = element(), root = element(); let measurements = 0, saves = 0, stateReads = 0, captured = 0;
   const themeEnv=motionTheme();themeEnv.api.setTone('dark');themeEnv.flush();
   const geometry = { vertical, origin:0, available:1000 };
   const state = { values:{ splitRatio:50 }, customized:{ splitRatio:false } };
   const previews = [];
   const edge = vertical ? 'top' : 'left';
-  const container=element();
+  const container=element(),panes=[element(),element()];container.querySelectorAll=()=>panes;
   const handle = { ...element(), closest:() => container, classList:{ contains:name => name.endsWith(`--${edge}`) }, setPointerCapture(id){assert.equal(id,1);captured++;},hasPointerCapture:()=>true,releasePointerCapture(){captured--;} };
   const source = between(workshop, '  function resizeFromPoint(', '  function resetSplitRatio()') + between(workshop, '  function beginSplitResize(event)', '  function makeHandle(edge)');
   const begin = vm.runInNewContext(`(() => { let activeResizeCleanup=null; ${source}; return beginSplitResize; })()`, {
@@ -331,7 +331,7 @@ for (const vertical of [true,false]) {
     measureSplitGeometry:() => { measurements++; return geometry; },
     applyControlValue:() => previews.push(state.values.splitRatio), persistSoon:() => saves++, updateOutputs() {}, resetSplitRatio() {}, flushDeferredLayout() {},
   });
-  const pointer = (type, value) => ({ type, pointerId:1, currentTarget:handle, clientX:value, clientY:value, preventDefault() {}, stopPropagation() {} });
+  const pointer = (type, value) => ({ type, pointerType, pointerId:1, currentTarget:handle, clientX:value, clientY:value, preventDefault() {}, stopPropagation() {} });
   begin(pointer('pointerdown', 500));
   assert.equal(captured,1);
   begin({type:'touchstart'});
@@ -339,6 +339,7 @@ for (const vertical of [true,false]) {
   assert.equal(captured,1,'Companion touch and unrelated pointer releases must leave the drag active');
   doc.listeners.get('pointermove')(pointer('pointermove',502));assert.equal(container.styleMutations,0,'A tap or 2px jitter leaves the ratio unchanged');
   doc.listeners.get('pointermove')(pointer('pointermove',503));assert.equal(state.values.splitRatio,50.3,'A 3px gesture starts live resizing immediately');
+  assert(panes.every(node=>node.classList.contains('pmm-split-surface-resizing')===(pointerType==='touch')),'Only touch input simplifies the two surfaces, including horizontal phone layouts');
   const firstPaint=container.styleMutations;
   for (let value=510;value<=700;value++) doc.listeners.get('pointermove')(pointer('pointermove',value));
   assert.equal(container.styleMutations,firstPaint,'High-rate events do not write between frames');
@@ -362,7 +363,7 @@ for (const vertical of [true,false]) {
   doc.listeners.get('pointerup')(pointer('pointerup',320));
   themeEnv.flush();assert.equal(themeEnv.doc.documentElement.dataset.pmmThemeTone,'light');themeEnv.api.destroy();
   assert.equal(state.values.splitRatio, 32, 'Pointerup must flush the final pending preview');
-  assert.equal(captured,0);
+  assert.equal(captured,0);assert(panes.every(node=>!node.classList.contains('pmm-split-surface-resizing')),'Release restores each surface');
   assert.deepEqual(previews,[32], 'Only release writes the final root variables');
   assert.equal(container.style.getPropertyValue(property),'');
   assert.equal(container.style.getPropertyValue('transition'),'');

@@ -2,15 +2,15 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {createServer} from 'node:http';
 // The served page has a separate origin and never loads or writes Tavern user data.
-export async function workshopFixture({themeSource=null,floatingSource=null,entries=1}={}){
+export async function workshopFixture({themeSource=null,floatingSource=null,entries=1,layoutSource=null,transformHTML=null}={}){
 const read=f=>fs.readFileSync(new URL('../../'+f,import.meta.url),'utf8');
 const workshop=read('dist/workshop-v3.02.js');
 const css=[...workshop.matchAll(/\.push\(\[e\.id,('(?:\\.|[^'\\])*'),''/g)].map(m=>vm.runInNewContext(m[1])).join('\n');
 const start=workshop.indexOf('/* ===== PMM_MOBILE_LAYOUT_TUNER_V1'),end=workshop.indexOf('/* ===== PMM_FLOATING_PANEL_BATCH_V1',start);
-const routes=new Map([['/native.css',css],['/layout.js',workshop.slice(start,end)],['/theme.js',themeSource || read('dist/workshop-theme-system.js')]]);
+const routes=new Map([['/native.css',css],['/layout.js',layoutSource||workshop.slice(start,end)],['/theme.js',themeSource || read('dist/workshop-theme-system.js')]]);
 for(const file of ['workshop-floating-store.js','workshop-floating-controller.js'])routes.set('/'+file,file==='workshop-floating-controller.js'&&floatingSource?floatingSource:read('dist/'+file));
 // Real shipped native CSS, independent layout controller and theme module; no Tavern user data.
-const html=`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/native.css"><style>
+let html=`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/native.css"><style>
 body{margin:0;background:#eee;--SmartThemeBlurTintColor:#eee;--SmartThemeBodyColor:#17202b}
 #preset-manager-main-panel{position:relative!important;width:100%!important;height:350px!important}
 .preset-panel{position:relative!important;width:100%!important;height:300px!important}
@@ -23,6 +23,7 @@ body{margin:0;background:#eee;--SmartThemeBlurTintColor:#eee;--SmartThemeBodyCol
 <div class="panel-section"><i class="fa-solid fa-code-branch section-icon" title="分支"></i><select class="panel-select panel-select--branch"><option>默认</option></select></div><div class="panel-collapse"><i></i></div>
 </div><div class="quick-edit-dropdown" style="display:none"><div class="dropdown-content">条目列表</div></div></div></div></div>
 <script>window.pmmTopNotificationsEnabled=()=>false;window.pmmSetTopNotificationsEnabled=()=>{};localStorage.setItem('pmm_visual_theme_v1','aqua');localStorage.setItem('preset-manager-theme-mode','light');</script><script type="module" src="/layout.js"></script><script type="module" src="/workshop-floating-store.js"></script><script type="module" src="/theme.js"></script><script type="module" src="/workshop-floating-controller.js"></script>`;
+if(transformHTML)html=transformHTML(html);
 const server=createServer((req,res)=>{const p=new URL(req.url,'http://localhost').pathname;res.setHeader('Content-Type',p.endsWith('.js')?'text/javascript':p.endsWith('.css')?'text/css':'text/html; charset=utf-8');res.end(routes.get(p)||html);});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 return{url:'http://127.0.0.1:'+server.address().port,close:()=>new Promise(r=>{server.close(r);server.closeAllConnections();})};

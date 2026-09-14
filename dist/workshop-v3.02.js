@@ -11402,6 +11402,9 @@ html.pmm-dnd-compat-active #preset-manager-main-panel{user-select:none!important
     const edge = ['top', 'bottom', 'left', 'right'].find(name => handle.classList.contains(`pmm-split-handle--${name}`));
     const isPrimaryHandle = edge === 'top' || edge === 'left';
     const mobileResize = edge === 'top' || edge === 'bottom';
+    const touchResize = event.pointerType === 'touch' || event.type.startsWith('touch') || !event.pointerType && mobileResize;
+    // Cache only the two panel surfaces, never the entry tree; scoped flags avoid inherited style invalidation.
+    const resizeSurfaces = touchResize ? Array.from(splitContainer.querySelectorAll(':scope > .pm-main-wrapper > .preset-panel,:scope > .preset-panel')).filter(node => !node.classList.contains('pmm-split-surface-resizing')) : [];
     const firstPoint = event.touches?.[0] || event;
     const startX = Number(firstPoint.clientX);
     const startY = Number(firstPoint.clientY);
@@ -11453,6 +11456,8 @@ html.pmm-dnd-compat-active #preset-manager-main-panel{user-select:none!important
         if (distance < 3) return;
         moved = true;
         VIEW.__PMM_THEME_SYSTEM__?.beginInteraction?.('split');
+        // Enable the existing touch resize rendering path for the lifetime of this gesture.
+        for (const node of resizeSurfaces) node.classList.add('pmm-split-surface-resizing');
         splitContainer.style.setProperty('transition', 'none', 'important');
       }
       queuedPoint = { x:point.clientX, y:point.clientY };
@@ -11497,6 +11502,7 @@ html.pmm-dnd-compat-active #preset-manager-main-panel{user-select:none!important
         }
       }
       if (moved) restoreGrid();
+      if (moved) for (const node of resizeSurfaces) node.classList.remove('pmm-split-surface-resizing');
       queuedPoint = null;
       if (!cancelled && isPrimaryHandle && !moved && now - startAt < 360) {
         const previousTap = Number(handle.dataset.pmmLastTapAt || 0);
@@ -11629,6 +11635,9 @@ html.pmm-dnd-compat-active #preset-manager-main-panel{user-select:none!important
     const style = DOC.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+/* Resize preview owns geometry; native transition:all must not interpolate each panel behind the finger. */
+#preset-manager-main-panel .preset-panel.pmm-split-surface-resizing{transition:none!important}
+
 @media screen and (max-width:768px){
   #preset-manager-main-panel.pmm-mobile-layout-enabled{
     --pmm-user-group-font:13px;
