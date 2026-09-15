@@ -33,11 +33,11 @@ assert.ok(stateBuilder.includes('enabled: prompt.enabled === true'), '快照没�
 
 const apply = section('async function applySnapshot(id)', 'function renameSnapshot(id)');
 assert.ok(apply.includes("text(snapshot.presetName) !== presetName"), '快照不应跨预设误应用');
-assert.ok(apply.includes('mergeSnapshotStates(prompts, snapshot.states)'), '应用快照时没有统一走 UID 与名称兜底匹配');
+assert.ok(apply.includes('mergeSnapshotStates(prompts, snapshot.states, { closeUnrecorded: true })'), '应用快照时没有统一走 UID 与名称兜底匹配');
 assert.ok(apply.includes('writeSwitchesToDraft(nextPrompts'), '应用快照后没有刷新工坊当前卡片');
 assert.ok(apply.includes('saveAppliedDraft(presetName, nextPrompts, draftUpdated)'), '应用快照没有同步真实预设与运行状态');
 
-const matching = section('function mergeSnapshotStates(prompts, states)', 'async function settleDraft()');
+const matching = section('function mergeSnapshotStates(prompts, states,', 'async function settleDraft()');
 assert.ok(matching.includes('const statesById = new Map'), '应用快照时没有按 UID 匹配');
 assert.ok(matching.includes('uniqueStatesByName'), '重导入后 UID 变化时没有名称兼容兜底');
 assert.ok(matching.includes('promptNameCounts.get(name) === 1'), '同名条目不能在名称兜底时被错误覆盖');
