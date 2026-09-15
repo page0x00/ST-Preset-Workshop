@@ -13,7 +13,7 @@ function section(startMarker, endMarker) {
 for (const marker of [
   'function currentDraftBridge()',
   'function draftPrompts()',
-  'function mergeSnapshotStates(prompts, states)',
+  'function mergeSnapshotStates(prompts, states,',
   'async function writeSwitchesToDraft(nextPrompts',
   'async function saveAppliedDraft(presetName, prompts, draftUpdated)',
   'data-pmm-snapshot-native-save-disabled',
@@ -26,7 +26,7 @@ const getPrompts = section('function getPrompts(presetName)', 'function isBranch
 assert.ok(getPrompts.includes('draftPrompts()'), '保存快照仍未优先读取工坊实时草稿');
 
 const apply = section('async function applySnapshot(id)', 'function renameSnapshot(id)');
-assert.ok(apply.includes('mergeSnapshotStates(prompts, snapshot.states)'), '应用快照没有统一匹配 UID 与名称兜底');
+assert.ok(apply.includes('mergeSnapshotStates(prompts, snapshot.states, { closeUnrecorded: true })'), '应用快照没有统一匹配 UID 与名称兜底');
 assert.ok(apply.includes('writeSwitchesToDraft(nextPrompts'), '应用快照没有更新当前工坊草稿');
 assert.ok(apply.includes('saveAppliedDraft(presetName, nextPrompts, draftUpdated)'), '应用快照没有走工坊保存链路同步主预设');
 
