@@ -94,10 +94,29 @@
       1,
       1
     ],
-    "reason": "Assertions target the superseded capture UI; absent from the author current npm check pipeline; retained unchanged."
+    "reason": "Initial integration failures targeted the superseded capture UI; corrected by the snapshot workflow follow-up below."
   },
   "limitations": [
     "Browser fixtures run real frontend modules and CSS without the full Tavern backend.",
     "Android device interaction and GPU frame rate need host verification."
-  ]
+  ],
+  "snapshot_workflow_followup": {
+    "runtime_changed": false,
+    "tests": [
+      "test-test46-switch-snapshots.mjs",
+      "test-test47-switch-snapshot-entry.mjs",
+      "test-test55-snapshot-draft-transaction.mjs"
+    ],
+    "standalone_exit_code": 0,
+    "default_check_includes_workflow": true,
+    "check_exit_code": 0,
+    "check_ui_exit_code": 0,
+    "deliberate_regressions_rejected": [
+      "stale naming result",
+      "failed save loses draft",
+      "native entry loses selected preset"
+    ],
+    "browser_tests_rerun": false,
+    "notes": "Shared host fixture executes shipped functions. Previous browser results remain applicable because runtime files are unchanged."
+  }
 }
